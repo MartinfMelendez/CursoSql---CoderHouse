@@ -108,12 +108,22 @@ HAVING COUNT(v.id_venta) = 0;
 --Top de compras por cliente
 -- Permite conocer qué productos compra más cada cliente y cuándo realizó su última compra para personalizar ofertas 
 -- y fortalecer la fidelización.
-SELECT c.nombre AS cliente, p.nombre AS producto, COUNT(v.id_venta) AS veces_comprado, MAX(v.fecha_venta) AS ultima_transaccion
-FROM retail.clientes c
-INNER JOIN retail.ventas v
-    ON c.id_clientes = v.id_clientes
-INNER JOIN retail.productos p
-    ON v.id_productos = p.id_productos
-GROUP BY c.id_clientes, c.nombre, p.id_productos, p.nombre
-ORDER BY c.nombre,
-    veces_comprado DESC, ultima_transaccion DESC;
+SELECT *
+FROM (
+    SELECT
+        c.nombre AS cliente,
+        p.nombre AS producto,
+        COUNT(v.id_venta) AS veces_comprado,
+        MAX(v.fecha_venta) AS ultima_transaccion,
+        ROW_NUMBER() OVER (
+            PARTITION BY c.id_clientes
+            ORDER BY COUNT(v.id_venta) DESC,
+                     MAX(v.fecha_venta) DESC
+        ) AS rn
+    FROM retail.clientes c
+    INNER JOIN retail.ventas v ON c.id_clientes = v.id_clientes
+    INNER JOIN retail.productos p ON v.id_productos = p.id_productos
+    GROUP BY c.id_clientes, c.nombre, p.id_productos, p.nombre
+) t
+WHERE rn = 1
+ORDER BY cliente;
